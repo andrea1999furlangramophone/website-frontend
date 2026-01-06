@@ -17,6 +17,7 @@ const translations = {
         about_full_text_1: "Koncertna udruga Gramophone više je od glazbene udruge; to je kulturni pokret sa sjedištem u Bujama. Spajamo klasično majstorstvo s energijom istarskog poluotoka.",
         about_full_text_2: "Naš cilj je promovirati kulturu i klasičnu glazbu, posebno mladim generacijama, ali i promicati kulturnu vrijednost teritorija.",
         docs_title: "Dokumenti i Transparentnost",
+        download_statute: "Preuzmi Statut (PDF)",
         privacy_title: "Politika Privatnosti",
         privacy_text: "Ova web stranica poštuje vašu privatnost u skladu s GDPR-om i hrvatskim zakonima...",
         
@@ -52,6 +53,7 @@ const translations = {
         about_full_text_1: "L'Associazione Concertistica Gramophone è più di un'associazione musicale; è un movimento culturale con sede a Buie.",
         about_full_text_2: "Il nostro obiettivo è promuovere la cultura e la musica classica, soprattutto alle giovani generazioni.",
         docs_title: "Documenti e Trasparenza",
+        download_statute: "Scarica Statuto (PDF)",
         privacy_title: "Privacy Policy",
         privacy_text: "Questo sito rispetta la tua privacy in conformità con il GDPR...",
         
@@ -84,6 +86,7 @@ const translations = {
         about_full_text_1: "Koncertna udruga Gramophone is more than a music association; it is a cultural movement based in Buje.",
         about_full_text_2: "Our goal is to promote culture and classical music, especially to young generations.",
         docs_title: "Documents & Transparency",
+        download_statute: "Download Statute (PDF)",
         privacy_title: "Privacy Policy",
         privacy_text: "This website respects your privacy in accordance with GDPR...",
         

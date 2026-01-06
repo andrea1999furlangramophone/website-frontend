@@ -88,13 +88,7 @@ function initEventsManager() {
     if(!eventsList) return;
 
     // Admin UI elements
-    const btnAdmin = document.getElementById('btn-admin');
-    const btnLogout = document.getElementById('btn-logout');
-    const loginModal = document.getElementById('login-modal');
-    const loginForm = document.getElementById('login-form');
-    const loginClose = document.getElementById('login-close');
-    const loginCancel = document.getElementById('login-cancel');
-    const loginMessage = document.getElementById('login-message');
+   
 
     // Modal elements
     const infoModal = document.getElementById('info-modal');
@@ -105,73 +99,16 @@ function initEventsManager() {
     const formCancel = document.getElementById('form-cancel');
     const concertForm = document.getElementById('concert-form');
 
-    // Utilities: hashing and simple session (client-side only)
-    async function hashPassword(pw) {
-        const enc = new TextEncoder();
-        const data = enc.encode(pw);
-        const digest = await crypto.subtle.digest('SHA-256', data);
-        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
-    }
-
-    function setAdminHash(hash) { localStorage.setItem('adminHash', hash); }
-    function getAdminHash() { return localStorage.getItem('adminHash'); }
-
-    function setAdminSession() {
-        const expiry = Date.now() + 1000 * 60 * 60 * 24; // 24h
-        localStorage.setItem('adminSessionExpiry', String(expiry));
-    }
-    function clearAdminSession() { localStorage.removeItem('adminSessionExpiry'); }
-    function isAdmin() {
-        const exp = Number(localStorage.getItem('adminSessionExpiry') || '0');
-        return exp && exp > Date.now();
-    }
-
-    async function handleLogin(password) {
-        const h = await hashPassword(password);
-        const stored = getAdminHash();
-        if(!stored) {
-            // first-time setup: save
-            setAdminHash(h);
-            setAdminSession();
-            return { ok:true, created:true };
-        }
-        if(h === stored) { setAdminSession(); return { ok:true }; }
-        return { ok:false };
-    }
-
+    // Admin functionality removed — ensure admin-only UI elements are hidden
     function updateAdminUI() {
-        const show = isAdmin();
-        document.querySelectorAll('.admin-only').forEach(el => {
-            if(show) el.classList.add('show'); else el.classList.remove('show');
-        });
-        if(btnLogout) btnLogout.style.display = show ? '' : 'none';
-        if(btnAdmin) btnAdmin.style.display = show ? 'none' : '';
-        if(addBtn) addBtn.style.display = show ? '' : 'none';
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('show'));
+        if(addBtn) addBtn.remove();
+        const btnAdmin = document.getElementById('btn-admin'); if(btnAdmin) btnAdmin.remove();
+        const btnLogout = document.getElementById('btn-logout'); if(btnLogout) btnLogout.remove();
     }
-
-    // Wire admin controls
-    btnAdmin && btnAdmin.addEventListener('click', () => {
-        loginMessage.textContent = getAdminHash() ? 'Enter admin password.' : 'Create admin password (first-time setup).';
-        showModal(loginModal);
-    });
-    btnLogout && btnLogout.addEventListener('click', () => { clearAdminSession(); updateAdminUI(); renderConcerts(); });
-    loginClose && loginClose.addEventListener('click', () => hideModal(loginModal));
-    loginCancel && loginCancel.addEventListener('click', () => hideModal(loginModal));
-    loginForm && loginForm.addEventListener('submit', async function(e){
-        e.preventDefault();
-        const pw = new FormData(loginForm).get('password');
-        const res = await handleLogin(pw);
-        if(res.ok) {
-            hideModal(loginModal);
-            updateAdminUI();
-            renderConcerts();
-            return;
-        }
-        alert('Invalid password');
-    });
 
     // Standard modal wiring
-    addBtn && addBtn.addEventListener('click', () => openFormModal());
+    // admin add button removed above; keep modal close wiring
     infoClose && infoClose.addEventListener('click', () => hideModal(infoModal));
     formClose && formClose.addEventListener('click', () => hideModal(formModal));
     formCancel && formCancel.addEventListener('click', () => hideModal(formModal));
@@ -197,18 +134,43 @@ function initEventsManager() {
     updateAdminUI();
     renderConcerts();
 
+    // Wire any existing static Info buttons (for static cards present in HTML)
+    function wireStaticInfoButtons() {
+        document.querySelectorAll('.info-btn').forEach(btn => {
+            // avoid attaching duplicate listeners
+            if (btn.dataset.wired) return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', function() {
+                const card = btn.closest('.event-card');
+                if(!card) return;
+                const day = card.querySelector('.date-box .day')?.textContent.trim() || '';
+                const month = card.querySelector('.date-box .month')?.textContent.trim() || '';
+                const title = card.querySelector('.event-details h3')?.textContent.trim() || '';
+                const locText = card.querySelector('.event-details span')?.textContent.trim() || '';
+                let location = locText;
+                let time = '';
+                if (locText.includes('|')) {
+                    const parts = locText.split('|').map(s => s.trim());
+                    location = parts[0] || '';
+                    time = parts[1] || '';
+                }
+                // If the card contains a hidden .info-content, use its innerHTML as modular content
+                const infoHtmlEl = card.querySelector('.info-content');
+                const html = infoHtmlEl ? infoHtmlEl.innerHTML.trim() : '';
+                const concert = { id: 'static', day, month, time, title, location, description: '', html };
+                openInfoModal(concert);
+            });
+        });
+    }
+
+    // run once to wire static buttons in the DOM
+    wireStaticInfoButtons();
+
     function getConcerts() {
         const raw = localStorage.getItem('concerts');
         if(!raw) {
-            const lang = localStorage.getItem('preferredLang') || 'hr';
-            const sample = [{
-                id: 'sample-1', day: '14', month: 'FEB', time: '20:00',
-                title: (translations && translations[lang] && translations[lang].event_1_title) || 'Baroque Nights',
-                location: (translations && translations[lang] && translations[lang].event_1_loc) || 'St. Servulus Church | 20:00',
-                description: ''
-            }];
-            localStorage.setItem('concerts', JSON.stringify(sample));
-            return sample;
+            // Do not inject a sample event automatically; return empty list so static events remain authoritative.
+            return [];
         }
         try { return JSON.parse(raw); } catch(e){ return []; }
     }
@@ -227,9 +189,11 @@ function initEventsManager() {
 
     function renderConcerts() {
         const list = getConcerts();
+        // Render only the dynamic (good) events from localStorage; ignore any static DOM event-cards
         eventsList.innerHTML = '';
-        list.sort((a,b) => a.id.localeCompare(b.id));
-        const admin = isAdmin();
+        if (!list || !list.length) return;
+        list.sort((a,b) => String(a.id).localeCompare(String(b.id)));
+        const admin = false;
         list.forEach(concert => {
             const card = document.createElement('div');
             card.className = 'event-card';
@@ -252,6 +216,14 @@ function initEventsManager() {
             const actions = document.createElement('div');
             actions.style.display = 'flex';
             actions.style.gap = '8px';
+
+            // Tickets link (per-event if provided, otherwise default to Entrio)
+            const ticketsLink = document.createElement('a');
+            ticketsLink.className = 'btn btn-primary';
+            ticketsLink.href = concert.tickets || 'https://www.entrio.hr';
+            ticketsLink.target = '_blank';
+            ticketsLink.textContent = 'Tickets';
+            actions.appendChild(ticketsLink);
 
             const infoBtn = document.createElement('button');
             infoBtn.className = 'btn btn-primary';
@@ -286,30 +258,30 @@ function initEventsManager() {
     }
 
     function openInfoModal(concert) {
+        // Build a modular modal: title, metadata, and HTML content (if provided)
+        function esc(s){ return String(s || '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+        const title = esc(concert.title || '');
+        const day = esc(concert.day || '');
+        const month = esc(concert.month || '');
+        const time = esc(concert.time || '');
+        const location = esc(concert.location || '');
+
+        // If `html` exists, insert as raw HTML into the .info-html container.
+        const customHtml = concert.html || '';
+
         infoBody.innerHTML = `
-            <h2>${concert.title}</h2>
-            <p><strong>Date:</strong> ${concert.day} ${concert.month} ${concert.time ? '| ' + concert.time : ''}</p>
-            <p><strong>Location:</strong> ${concert.location}</p>
-            <p>${concert.description || ''}</p>
+            <h2>${title}</h2>
+            <p><strong>Date:</strong> ${day} ${month} ${time ? '| ' + time : ''}</p>
+            <p><strong>Location:</strong> ${location}</p>
+            <div class="info-html">${customHtml || (concert.description ? '<p>' + esc(concert.description) + '</p>' : '')}</div>
         `;
         showModal(infoModal);
     }
 
     function openFormModal(concert) {
-        if(!isAdmin()) { alert('Admin only'); return; }
-        concertForm.reset();
-        concertForm.dataset.editId = '';
-        document.getElementById('form-title').textContent = concert ? 'Edit Concert' : 'Add Concert';
-        if(concert) {
-            concertForm.day.value = concert.day || '';
-            concertForm.month.value = concert.month || '';
-            concertForm.time.value = concert.time || '';
-            concertForm.title.value = concert.title || '';
-            concertForm.location.value = concert.location || '';
-            concertForm.description.value = concert.description || '';
-            concertForm.dataset.editId = concert.id;
-        }
-        showModal(formModal);
+        // Admin UI removed — this function is a no-op.
+        return;
     }
 
     function showModal(el) { if(!el) return; el.classList.remove('hidden'); el.setAttribute('aria-hidden', 'false'); }
